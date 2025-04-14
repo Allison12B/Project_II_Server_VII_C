@@ -1,4 +1,4 @@
-# Project 1 - Fisrt project with APIs
+# Project 2 - Second project with APIs
 This project was developed with Express.js.
 
 ## Install
