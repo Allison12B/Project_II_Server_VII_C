@@ -1,5 +1,8 @@
 const AdminUser = require("../models/adminUser");
 const mongoose = require("mongoose");
+const jwt = require("jsonwebtoken");
+const THE_SECRET_KEY = '123JWT';
+
 
 /**
  * Controller of the creates a restricted users 
@@ -72,50 +75,46 @@ const adminLogin = async (req, res) => {
     try {
         const { email, password } = req.body;
 
-        // Data validated
-        if (
-            typeof email !== 'string' || email.trim() === '' ||
-            typeof password !== 'string' || password.trim() === ''
-        ) {
-            return res.status(422).json({
-                error: 'No valid data provided for administrator user',
-            });
+        if (!email || !password) {
+            return res.status(422).json({ error: 'No valid data provided for administrator user' });
         }
 
-        // Search the user
-        const userAdmin = await AdminUser.findOne({ email: email });
+        // Buscar usuario en la base de datos
+        const userAdmin = await AdminUser.findOne({ email });
+
         if (!userAdmin) {
-            return res.status(404).json({
-                success: false,
-                message: 'User not found'
-            });
+            return res.status(404).json({ success: false, message: 'User not found' });
         }
 
-        // Password validated
-        const encodePassword = Buffer.from(password).toString('base64');
-        if (encodePassword !== userAdmin.password) {
-            return res.status(401).json({
-                success: false
-            });
+        // Validar la contraseña
+        const encodedPassword = Buffer.from(password).toString('base64');
+        if (encodedPassword !== userAdmin.password) {
+            return res.status(401).json({ success: false, message: 'Invalid credentials' });
         }
 
-        return res.status(200).json({
-            success: true,
-            data: {
-                id: userAdmin._id,
-                email: userAdmin.email,
-                name: userAdmin.name
-            }
-        });
-    }
-    catch (error) {
+        // Generar el token después de validar credenciales
+        const payload = {
+            adminId: userAdmin._id,
+            name: userAdmin.name,
+            username: userAdmin.email,
+            permission: ['create', 'edit', 'delete'],
+            ip: req.ips,
+            agent: req.get('user-agent')
+        };
+
+        const token = jwt.sign(payload, THE_SECRET_KEY, { expiresIn: '1h' });
+
+        return res.status(200).json({ success: true, token, data: { id: userAdmin._id } });
+
+    } catch (error) {
         console.error('Error en adminLogin:', error);
-        return res.status(500).json({
-            success: false,
-            message: 'Server error'
-        });
+        return res.status(500).json({ success: false, message: 'Server error' });
     }
-}
+};
+
+//Method for remove the session storage token 
+
+
 
 //Controller for admin login pin
 /**
@@ -155,9 +154,7 @@ const adminPinLogin = async (req, res) => {
         }
 
         if (userAdmin.pin !== pinNumber) {
-            return res.status(401).json({
-                success: false
-            });
+            return res.status(401).json({ success: false, message: 'Invalid PIN' });
         }
 
         return res.status(200).json({
