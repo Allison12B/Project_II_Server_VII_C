@@ -1,8 +1,14 @@
 const AdminUser = require("../models/adminUser");
 const mongoose = require("mongoose");
+require('dotenv').config();
 const jwt = require("jsonwebtoken");
 const THE_SECRET_KEY = '123JWT';
+const { MailerSend, EmailParams, Sender, Recipient, EmailParams } = require('mailersend');
 
+const mailersend = new MailerSend({
+    apiKey: process.env.MAILERSEND_API_KEY,
+});
+//console.log('MailerSend API key:', process.env.MAILERSEND_API_KEY);
 
 /**
  * Controller of the creates a restricted users 
@@ -11,7 +17,7 @@ const THE_SECRET_KEY = '123JWT';
  * @param {*} res
  */
 
-const adminCreate = (req, res) => {
+const adminCreate = async (req, res) => {
     let admin = new AdminUser(req.body);
 
     admin.email = req.body.email;
@@ -23,8 +29,9 @@ const adminCreate = (req, res) => {
     admin.age = req.body.age;
     admin.country = req.body.country;
     admin.dateBirth = req.body.dateBirth;
+    admin.state = "Pending"; 
 
-    //Valited the data to make a new insert
+    // Validar los datos para la inserción
     if (
         typeof admin.email !== 'string' || admin.email.trim() === '' ||
         typeof admin.password !== 'string' || admin.password.trim() === '' ||
@@ -34,27 +41,70 @@ const adminCreate = (req, res) => {
         typeof admin.lastName !== 'string' || admin.lastName.trim() === '' ||
         typeof admin.age !== 'number' || isNaN(admin.age) || admin.age <= 18 ||
         typeof admin.country !== 'string' || admin.country.trim() === '' ||
-        typeof admin.dateBirth !== 'string' || admin.dateBirth.trim() === ''
+        typeof admin.dateBirth !== 'string' || admin.dateBirth.trim() === '' ||
+        typeof admin.state !== 'string'
     ) {
         return res.status(422).json({
             error: 'No valid data provided for admin user',
         });
     }
 
-    //Save the data in the database
-    if (admin.email && admin.password && admin.phoneNumber && admin.pin && admin.name && admin.lastName && admin.age && admin.country && admin.dateBirth) {
+    // Generar un token de verificación
+    const verificationToken = jwt.sign({ email: admin.email }, THE_SECRET_KEY, { expiresIn: '24h' });
+
+    // Guardar el token de verificación en el admin
+    admin.verificationToken = verificationToken;
+
+    // Guardar los datos en la base de datos
+    if (
+        admin.email && admin.password && admin.phoneNumber && admin.pin &&
+        admin.name && admin.lastName && admin.age && admin.country &&
+        admin.dateBirth && admin.state
+    ) {
         admin.save().then(() => {
-            res.header({
-                'location': `api/adminUser/?id=${admin.id}`
-            });
-            res.status(201).json(admin);
+            // Enviar el correo de verificación
+            const verificationLink = `http://localhost:3001/api/verify?token=${verificationToken}`;
+
+            const emailParams = new EmailParams()
+                .setFrom(new Sender('admin@test-pzkmgq77owvl059v.mlsender.net', 'KidsTube'))
+                .setTo([new Recipient(admin.email, `${admin.name} ${admin.lastName}`)])
+                .setSubject("Verifica tu correo de administrador")
+                .setHtml(`
+                    <p>Hola ${admin.name},</p>
+                    <p>Gracias por registrarte como administrador. Para activar tu cuenta, por favor haz clic en el siguiente enlace:</p>
+                    <p><a href="${verificationLink}">Verificar correo</a></p>
+                `);
+
+
+            mailerSend.email.send(emailParams)
+                .then(() => {
+                    res.header({
+                        'location': `api/adminUser/?id=${admin.id}`
+                    });
+                    res.status(201).json({
+                        message: 'Usuario administrador creado con éxito. Por favor, verifica tu correo.'
+                    });
+                })
+                .catch((err) => {
+                    console.log('Error while sending verification email', err);
+                    res.status(500).json({
+                        error: 'Hubo un error al enviar el correo de verificación'
+                    });
+                });
         })
             .catch((err) => {
-                res.status(422);
-                console.log('Error while saving the admin user', err);
-                res.json({
-                    error: 'There was an error saving the admin user'
-                });
+                if (err.code === 11000 && err.keyPattern && err.keyPattern.email) {
+                    // Error por correo duplicado
+                    console.log('Correo duplicado:', err.keyValue.email);
+                    res.status(409).json({
+                        error: `El correo ${err.keyValue.email} ya está registrado como administrador.`
+                    });
+                } else {
+                    console.log('Error while saving the admin user', err);
+                    res.status(500).json({
+                        error: 'Error interno al guardar el usuario administrador'
+                    });
+                }
             });
     } else {
         res.status(422);
@@ -64,6 +114,42 @@ const adminCreate = (req, res) => {
         });
     }
 };
+
+// Método para verificar el correo
+const verifyEmail = async (req, res) => {
+    const token = req.query.token;
+  
+    if (!token) {
+      return res.status(400).json({ error: "Token is required" });
+    }
+  
+    try {
+      // Verificamos el token
+      const decoded = jwt.verify(token, THE_SECRET_KEY);
+  
+      // Buscamos al admin por el email decodificado
+      const admin = await AdminUser.findOne({ email: decoded.email });
+  
+      if (!admin) {
+        return res.status(404).json({ error: "Admin not found" });
+      }
+  
+      // Si ya está verificado
+      if (admin.isVerified) {
+        return res.status(200).json({ message: "Email already verified" });
+      }
+  
+      // Actualizamos el estado
+      admin.isVerified = true;
+      admin.state = "Active";
+      await admin.save();
+  
+      return res.status(200).json({ message: "¡Correo verificado con éxito!" });
+  
+    } catch (error) {
+      return res.status(400).json({ error: "Invalid or expired token" });
+    }
+  };
 
 /**
  * Controller of the login 
@@ -84,6 +170,10 @@ const adminLogin = async (req, res) => {
 
         if (!userAdmin) {
             return res.status(404).json({ success: false, message: 'User not found' });
+        }
+
+        if (!userAdmin.isVerified) {
+            return res.status(401).json({ success: false, message: 'Cuenta no verificada' });
         }
 
         // Validar la contraseña
@@ -111,10 +201,6 @@ const adminLogin = async (req, res) => {
         return res.status(500).json({ success: false, message: 'Server error' });
     }
 };
-
-//Method for remove the session storage token 
-
-
 
 //Controller for admin login pin
 /**
@@ -177,5 +263,6 @@ const adminPinLogin = async (req, res) => {
 module.exports = {
     adminCreate,
     adminLogin,
-    adminPinLogin
+    adminPinLogin,
+    verifyEmail
 }
