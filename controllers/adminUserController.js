@@ -3,7 +3,7 @@ const mongoose = require("mongoose");
 require('dotenv').config();
 const jwt = require("jsonwebtoken");
 const THE_SECRET_KEY = '123JWT';
-const { MailerSend, EmailParams, Sender, Recipient, EmailParams } = require('mailersend');
+const { MailerSend, EmailParams, Sender, Recipient } = require('mailersend');
 
 const mailersend = new MailerSend({
     apiKey: process.env.MAILERSEND_API_KEY,
