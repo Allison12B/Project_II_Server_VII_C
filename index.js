@@ -16,6 +16,13 @@ const THE_SECRET_KEY = '123JWT';
 const bodyParser = require("body-parser");
 app.use(bodyParser.json());
 
+//Cheack for cors
+const cors = require("cors");
+app.use(cors({
+  domains: '*',
+  methods: "*"
+}));
+
 // Middleware de autenticación JWT
 const authenticateJWT = (req, res, next) => {
   const authHeader = req.headers["authorization"];
@@ -26,6 +33,7 @@ const authenticateJWT = (req, res, next) => {
         return res.status(401).json({ error: "Unauthorized" });
       }
       console.log('Payload:', decoded);
+      req.user = decoded;
       next();
     });
   } else {
@@ -34,17 +42,10 @@ const authenticateJWT = (req, res, next) => {
 };
 
 
-// check for cors
-const cors = require("cors");
 const { userCreate, /*userGet,*/ userPut, userDelete, userLogin } = require('./controllers/restrictedUserController');
 const { adminCreate, adminLogin, adminPinLogin, verifyEmail } = require('./controllers/adminUserController');
 const { videoCreate, videoDelete, /*getVideoById, videosGet,*/ videoPut/*, getVideoByPlayList*/ } = require("./controllers/videoController");
 const { playListCreate, playListDelete, /*playListGetByRestrictedUser,*/ playListPut/*, playListGetByAdminUser*/ } = require('./controllers/playListController');
-
-app.use(cors({
-  domains: '*',
-  methods: "*"
-}));
 
 // Rutas de AdminUser
 app.post('/api/adminUser', adminCreate);
