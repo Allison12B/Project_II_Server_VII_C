@@ -1,4 +1,5 @@
-const AdminUser = require("./models/adminUser");
+//const AdminUser = require("./models/adminUser");
+require('dotenv').config();
 const express = require('express');
 const app = express();
 // database connection
@@ -36,11 +37,9 @@ const authenticateJWT = (req, res, next) => {
 // check for cors
 const cors = require("cors");
 const { userCreate, /*userGet,*/ userPut, userDelete, userLogin } = require('./controllers/restrictedUserController');
-const { adminCreate, adminLogin, adminPinLogin } = require('./controllers/adminUserController');
+const { adminCreate, adminLogin, adminPinLogin, verifyEmail } = require('./controllers/adminUserController');
 const { videoCreate, videoDelete, /*getVideoById, videosGet,*/ videoPut/*, getVideoByPlayList*/ } = require("./controllers/videoController");
 const { playListCreate, playListDelete, /*playListGetByRestrictedUser,*/ playListPut/*, playListGetByAdminUser*/ } = require('./controllers/playListController');
-
-
 
 app.use(cors({
   domains: '*',
@@ -49,6 +48,7 @@ app.use(cors({
 
 // Rutas de AdminUser
 app.post('/api/adminUser', adminCreate);
+app.get('/api/verify', verifyEmail);
 app.post('/api/adminUserLogin', adminLogin);
 app.post('/api/adminUserPin/:adminId', adminPinLogin);
 
