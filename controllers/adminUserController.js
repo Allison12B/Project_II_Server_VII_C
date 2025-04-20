@@ -29,7 +29,7 @@ const adminCreate = async (req, res) => {
     admin.age = req.body.age;
     admin.country = req.body.country;
     admin.dateBirth = req.body.dateBirth;
-    admin.state = "Pending"; 
+    admin.state = "Pending";
 
     // Validar los datos para la inserción
     if (
@@ -76,7 +76,7 @@ const adminCreate = async (req, res) => {
                 `);
 
 
-            mailerSend.email.send(emailParams)
+            mailersend.email.send(emailParams)
                 .then(() => {
                     res.header({
                         'location': `api/adminUser/?id=${admin.id}`
@@ -118,38 +118,38 @@ const adminCreate = async (req, res) => {
 // Método para verificar el correo
 const verifyEmail = async (req, res) => {
     const token = req.query.token;
-  
+
     if (!token) {
-      return res.status(400).json({ error: "Token is required" });
+        return res.status(400).json({ error: "Token is required" });
     }
-  
+
     try {
-      // Verificamos el token
-      const decoded = jwt.verify(token, THE_SECRET_KEY);
-  
-      // Buscamos al admin por el email decodificado
-      const admin = await AdminUser.findOne({ email: decoded.email });
-  
-      if (!admin) {
-        return res.status(404).json({ error: "Admin not found" });
-      }
-  
-      // Si ya está verificado
-      if (admin.isVerified) {
-        return res.status(200).json({ message: "Email already verified" });
-      }
-  
-      // Actualizamos el estado
-      admin.isVerified = true;
-      admin.state = "Active";
-      await admin.save();
-  
-      return res.status(200).json({ message: "¡Correo verificado con éxito!" });
-  
+        // Verificamos el token
+        const decoded = jwt.verify(token, THE_SECRET_KEY);
+
+        // Buscamos al admin por el email decodificado
+        const admin = await AdminUser.findOne({ email: decoded.email });
+
+        if (!admin) {
+            return res.status(404).json({ error: "Admin not found" });
+        }
+
+        // Si ya está verificado
+        if (admin.isVerified) {
+            return res.status(200).json({ message: "Email already verified" });
+        }
+
+        // Actualizamos el estado
+        admin.isVerified = true;
+        admin.state = "Active";
+        await admin.save();
+
+        return res.status(200).json({ message: "¡Correo verificado con éxito!" });
+
     } catch (error) {
-      return res.status(400).json({ error: "Invalid or expired token" });
+        return res.status(400).json({ error: "Invalid or expired token" });
     }
-  };
+};
 
 /**
  * Controller of the login 
