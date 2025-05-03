@@ -10,7 +10,7 @@ const mongoose = require("mongoose");
 //Method to create a new video
 const videoCreate = async (req, res) => {
     try {
-        let { name, url, description, playLists, admin } = req.body;
+        let { name, url, description, playLists, adminId } = req.body;
 
         if (!name || typeof name !== 'string' || name.trim() === '' ||
             !url || typeof url !== 'string' || url.trim() === '') {
@@ -28,7 +28,7 @@ const videoCreate = async (req, res) => {
             url,
             description: description || "",
             playLists,
-            admin
+            adminId
         });
 
         await newVideo.save();
