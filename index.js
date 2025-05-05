@@ -10,7 +10,7 @@ const db = mongoose.connect("mongodb+srv://kendall14solr:kolerxx12345@reyes.2qxg
 
 //JWT 
 const jwt = require("jsonwebtoken");
-const THE_SECRET_KEY = '123JWT';
+const THE_SECRET_KEY = process.env.THE_SECRET_KEY;
 
 // parser for the request body (required for the POST and PUT methods)
 const bodyParser = require("body-parser");
@@ -43,7 +43,7 @@ const authenticateJWT = (req, res, next) => {
 
 
 const { userCreate, /*userGet,*/ userPut, userDelete, userLogin } = require('./controllers/restrictedUserController');
-const { adminCreate, adminLogin, adminPinLogin, verifyEmail } = require('./controllers/adminUserController');
+const { adminCreate, adminLogin, adminPinLogin, verifyEmail, verifyLoginCode } = require('./controllers/adminUserController');
 const { videoCreate, videoDelete, /*getVideoById, videosGet,*/ videoPut/*, getVideoByPlayList*/ } = require("./controllers/videoController");
 const { playListCreate, playListDelete, /*playListGetByRestrictedUser,*/ playListPut/*, playListGetByAdminUser*/ } = require('./controllers/playListController');
 
@@ -51,6 +51,7 @@ const { playListCreate, playListDelete, /*playListGetByRestrictedUser,*/ playLis
 app.post('/api/adminUser', adminCreate);
 app.get('/api/verify', verifyEmail);
 app.post('/api/adminUserLogin', adminLogin);
+app.post('/api/adminUserVerifyCode', verifyLoginCode);
 app.post('/api/adminUserPin/:adminId', adminPinLogin);
 
 // Rutas de RestrictedUser
