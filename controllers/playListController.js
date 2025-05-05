@@ -167,7 +167,7 @@ const playListPut = async (req, res) => {
             playListFound.restrictedUsers = restrictedUsers.map(id => new mongoose.Types.ObjectId(id));
         }
 
-        await playListFound.save().header({ 'Location': `/api/restrictedUser/?id=${playListId.id}` });
+        await playListFound.save();
 
         console.log("PlayList updated successfully");
         return res.json(playListFound);
