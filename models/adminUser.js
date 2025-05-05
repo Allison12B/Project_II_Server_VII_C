@@ -11,6 +11,8 @@ const adminUserSchema = new mongoose.Schema({
     age: { type: Number, required: true },
     country: { type: String, required: true },
     dateBirth: { type: String, required: true },
+    code: { type: Number},
+    codeExpire: { type: Date},
     state: { type: String, enum: ['Pending', 'Active'], default: 'Pending' },
     isVerified: { type: Boolean, default: false },
     verificationToken: { type: String }
