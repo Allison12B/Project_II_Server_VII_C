@@ -2,13 +2,19 @@ const AdminUser = require("../models/adminUser");
 const mongoose = require("mongoose");
 require('dotenv').config();
 const jwt = require("jsonwebtoken");
-const THE_SECRET_KEY = '123JWT';
+const THE_SECRET_KEY = process.env.THE_SECRET_KEY;
 const { MailerSend, EmailParams, Sender, Recipient } = require('mailersend');
 
 const mailersend = new MailerSend({
     apiKey: process.env.MAILERSEND_API_KEY,
 });
 //console.log('MailerSend API key:', process.env.MAILERSEND_API_KEY);
+
+//Twilio
+const accountSid = process.env.TWILIO_ACCOUNT_SID;
+const authToken = process.env.TWILIO_AUTH_TOKEN;
+const numberTwilio = process.env.TWILIO_FROM_NUMBER;
+const client = require('twilio')(accountSid, authToken, numberTwilio);
 
 /**
  * Controller of the creates a restricted users 
@@ -74,7 +80,6 @@ const adminCreate = async (req, res) => {
                     <p>Gracias por registrarte como administrador. Para activar tu cuenta, por favor haz clic en el siguiente enlace:</p>
                     <p><a href="${verificationLink}">Verificar correo</a></p>
                 `);
-
 
             mailersend.email.send(emailParams)
                 .then(() => {
@@ -151,6 +156,7 @@ const verifyEmail = async (req, res) => {
     }
 };
 
+
 /**
  * Controller of the login 
  *
@@ -165,7 +171,6 @@ const adminLogin = async (req, res) => {
             return res.status(422).json({ error: 'No valid data provided for administrator user' });
         }
 
-        // Buscar usuario en la base de datos
         const userAdmin = await AdminUser.findOne({ email });
 
         if (!userAdmin) {
@@ -173,16 +178,15 @@ const adminLogin = async (req, res) => {
         }
 
         if (!userAdmin.isVerified) {
-            return res.status(401).json({ success: false, message: 'Cuenta no verificada' });
+            return res.status(401).json({ success: false, message: 'Account not verified or pending' });
         }
 
-        // Validar la contraseña
         const encodedPassword = Buffer.from(password).toString('base64');
         if (encodedPassword !== userAdmin.password) {
             return res.status(401).json({ success: false, message: 'Invalid credentials' });
         }
 
-        // Generar el token después de validar credenciales
+        // Crear token
         const payload = {
             adminId: userAdmin._id,
             name: userAdmin.name,
@@ -194,11 +198,132 @@ const adminLogin = async (req, res) => {
 
         const token = jwt.sign(payload, THE_SECRET_KEY, { expiresIn: '1h' });
 
-        return res.status(200).json({ success: true, token, data: { id: userAdmin._id } });
+        // Generar código
+        const code = Math.floor(100000 + Math.random() * 900000);
+        userAdmin.code = code;
+        userAdmin.codeExpire = new Date(Date.now() + 2 * 60 * 1000); // 2 minutos
+        await userAdmin.save();
 
+        // Enviar SMS
+        const numberFormat = `+506${userAdmin.phoneNumber}`;
+        await client.messages.create({
+            body: `Your access code is: ${code}`,
+            from: numberTwilio,
+            to: numberFormat
+        });
+
+        //return res.status(200).json({ success: true, token, data: { id: userAdmin._id } });
+        return res.status(200).json({ success: true, token, message: 'Code sent by SMS', data: { id: userAdmin._id } });
     } catch (error) {
         console.error('Error en adminLogin:', error);
         return res.status(500).json({ success: false, message: 'Server error' });
+    }
+};
+
+//Verify the SMS code
+const verifyLoginCode = async (req, res) => {
+    try {
+        const token = req.headers.authorization?.split(' ')[1];
+        if (!token) {
+            return res.status(401).json({
+                success: false,
+                message: 'Authorization token required'
+            });
+        }
+
+        let decoded;
+        try {
+            decoded = jwt.verify(token, THE_SECRET_KEY);
+        } catch (jwtError) {
+            return res.status(401).json({
+                success: false,
+                message: 'Invalid or expired token'
+            });
+        }
+
+        const { adminId, code } = req.body;
+
+        if (!adminId || !code) {
+            return res.status(400).json({
+                success: false,
+                message: 'Both adminId and code are required'
+            });
+        }
+
+        if (!mongoose.Types.ObjectId.isValid(adminId)) {
+            return res.status(400).json({
+                success: false,
+                message: 'Invalid admin ID format'
+            });
+        }
+
+        if (isNaN(Number(code)) || code.toString().length !== 6) {
+            return res.status(400).json({
+                success: false,
+                message: 'Code must be a 6-digit number'
+            });
+        }
+
+        const userAdmin = await AdminUser.findById(adminId);
+
+        if (!userAdmin) {
+            return res.status(404).json({
+                success: false,
+                message: 'Admin user not found'
+            });
+        }
+
+        if (decoded.adminId !== adminId) {
+            return res.status(403).json({
+                success: false,
+                message: 'Token does not match user'
+            });
+        }
+
+        if (!userAdmin.code || !userAdmin.codeExpire) {
+            return res.status(401).json({
+                success: false,
+                message: 'No active code found'
+            });
+        }
+
+        if (new Date() > userAdmin.codeExpire) {
+            return res.status(401).json({
+                success: false,
+                message: 'Code has expired'
+            });
+        }
+
+        if (parseInt(code) !== userAdmin.code) {
+            return res.status(401).json({
+                success: false,
+                message: 'Invalid code'
+            });
+        }
+
+        userAdmin.code = null;
+        userAdmin.codeExpire = null;
+        await userAdmin.save();
+
+        return res.status(200).json({
+            success: true,
+            message: 'Code verified successfully',
+            data: {
+                id: userAdmin._id,
+                name: userAdmin.name,
+                email: userAdmin.email,
+                permission: decoded.permission,
+                agent: decoded.agent
+            }
+        });
+
+    } catch (error) {
+        console.error('Error in verifyLoginCode:', error);
+        return res.status(500).json({
+            success: false,
+            message: 'Internal server error',
+            error: error.message
+        });
     }
 };
 
@@ -264,5 +389,6 @@ module.exports = {
     adminCreate,
     adminLogin,
     adminPinLogin,
-    verifyEmail
+    verifyEmail,
+    verifyLoginCode
 }
