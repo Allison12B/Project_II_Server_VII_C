@@ -1,5 +1,6 @@
 const video = require("../models/video");
 const mongoose = require("mongoose");
+require('dotenv').config();
 
 /**
  * Controller of create a new video 
@@ -210,6 +211,27 @@ const videoPut = async (req, res) => {
     }
 };
 
+const searchYouTube = async (req, res) => {
+    const { query } = req.body;
+    const YouTubeKey = process.env.YOUTUBE_API_KEY;
+
+    if (!query) {
+        return res.status(400).json({ error: 'Search query is required.' });
+    }
+
+    try {
+        const response = await fetch(
+            `https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&q=${encodeURIComponent(query)}&key=${YouTubeKey}`
+        );
+
+        const data = await response.json();
+        return res.json(data.items); // devolvemos solo los videos
+    } catch (error) {
+        console.error("Error fetching from YouTube API:", error);
+        return res.status(500).json({ error: 'Failed to fetch from YouTube API.' });
+    }
+};
+
 //impots the methods
 module.exports = {
     videoCreate,
@@ -217,5 +239,6 @@ module.exports = {
     getVideoById,
     videosGet,
     videoPut,
-    getVideoByPlayList
+    getVideoByPlayList,
+    searchYouTube
 }

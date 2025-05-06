@@ -42,10 +42,10 @@ const authenticateJWT = (req, res, next) => {
 };
 
 
-const { userCreate, /*userGet,*/ userPut, userDelete, userLogin } = require('./controllers/restrictedUserController');
+const { userCreate, userPut, userDelete, userLogin } = require('./controllers/restrictedUserController');
 const { adminCreate, adminLogin, adminPinLogin, verifyEmail, verifyLoginCode } = require('./controllers/adminUserController');
-const { videoCreate, videoDelete, /*getVideoById, videosGet,*/ videoPut/*, getVideoByPlayList*/ } = require("./controllers/videoController");
-const { playListCreate, playListDelete, /*playListGetByRestrictedUser,*/ playListPut/*, playListGetByAdminUser*/ } = require('./controllers/playListController');
+const { videoCreate, videoDelete, videoPut, searchYouTube} = require("./controllers/videoController");
+const { playListCreate, playListDelete, playListPut} = require('./controllers/playListController');
 
 // Rutas de AdminUser
 app.post('/api/adminUser', adminCreate);
@@ -69,5 +69,6 @@ app.put('/api/playList/:id', authenticateJWT, playListPut);
 app.post('/api/video', authenticateJWT, videoCreate);
 app.delete('/api/video/:id', authenticateJWT, videoDelete);
 app.put('/api/video/:id', authenticateJWT, videoPut);
+app.post('/api/buscarVideo', authenticateJWT, searchYouTube);
 
 app.listen(3001, () => console.log("Example app listening on port 3001!"));

@@ -196,7 +196,7 @@ const adminLogin = async (req, res) => {
             agent: req.get('user-agent')
         };
 
-        const token = jwt.sign(payload, THE_SECRET_KEY, { expiresIn: '1h' });
+        const token = jwt.sign(payload, THE_SECRET_KEY, { expiresIn: '2h' });
 
         // Generar código
         const code = Math.floor(100000 + Math.random() * 900000);
