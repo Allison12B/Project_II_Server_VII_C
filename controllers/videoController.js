@@ -232,7 +232,7 @@ const searchYouTube = async (req, res) => {
     }
 };
 
-//impots the methods
+//imports the methods
 module.exports = {
     videoCreate,
     videoDelete,
