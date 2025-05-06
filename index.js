@@ -1,11 +1,14 @@
-//const AdminUser = require("./models/adminUser");
 require('dotenv').config();
 const express = require('express');
 const app = express();
-// database connection
-const mongoose = require("mongoose");
+
+/*const passport = require('passport'); 
+const session = require('express-session');
+require('./middlewareGoogle/passport');
+require('./routesGoogle/authRoutes');*/
 
 //Kendall's data base connection 
+const mongoose = require("mongoose");
 const db = mongoose.connect("mongodb+srv://kendall14solr:kolerxx12345@reyes.2qxgc.mongodb.net/project_I");
 
 //JWT 
@@ -15,6 +18,18 @@ const THE_SECRET_KEY = process.env.THE_SECRET_KEY;
 // parser for the request body (required for the POST and PUT methods)
 const bodyParser = require("body-parser");
 app.use(bodyParser.json());
+
+/**
+app.use(express.json());
+app.use(session({ secret: 'sessionsecret', resave: false, saveUninitialized: true }));
+app.use(passport.initialize());
+app.use(passport.session());
+
+app.use('/api/auth', authRoutes);
+app.use('/api/users', userRoutes);
+
+app.use(express.static(path.join(__dirname, 'client')));
+*/
 
 //Cheack for cors
 const cors = require("cors");
@@ -44,8 +59,8 @@ const authenticateJWT = (req, res, next) => {
 
 const { userCreate, userPut, userDelete, userLogin } = require('./controllers/restrictedUserController');
 const { adminCreate, adminLogin, adminPinLogin, verifyEmail, verifyLoginCode } = require('./controllers/adminUserController');
-const { videoCreate, videoDelete, videoPut, searchYouTube} = require("./controllers/videoController");
-const { playListCreate, playListDelete, playListPut} = require('./controllers/playListController');
+const { videoCreate, videoDelete, videoPut, searchYouTube } = require("./controllers/videoController");
+const { playListCreate, playListDelete, playListPut } = require('./controllers/playListController');
 
 // Rutas de AdminUser
 app.post('/api/adminUser', adminCreate);
@@ -53,6 +68,11 @@ app.get('/api/verify', verifyEmail);
 app.post('/api/adminUserLogin', adminLogin);
 app.post('/api/adminUserVerifyCode', verifyLoginCode);
 app.post('/api/adminUserPin/:adminId', adminPinLogin);
+
+//RUtas de Google
+/*app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, '../client/index.html'));
+});*/
 
 // Rutas de RestrictedUser
 app.post('/api/restrictedUser', authenticateJWT, userCreate);
